@@ -120,7 +120,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (username: string, password: string): Promise<void> => {
     try {
       setLoading(true);
-      const response = await axios.post('/api/auth/login', {
+      // Folosește URL complet pentru build static, relativ pentru development
+      const baseURL = process.env.NODE_ENV === 'production' ? 'http://localhost:3001' : '';
+      const response = await axios.post(`${baseURL}/api/auth/login`, {
         username,
         password,
       });
