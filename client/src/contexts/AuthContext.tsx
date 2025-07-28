@@ -91,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(JSON.parse(storedUser));
 
           // Verifică validitatea token-ului
-          const response = await axios.get('/api/auth/me');
+          const response = await axios.get('http://localhost:3001/api/auth/me');
           if (response.data.success) {
             setUser(response.data.data);
           } else {
@@ -120,9 +120,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (username: string, password: string): Promise<void> => {
     try {
       setLoading(true);
-      // Folosește URL complet pentru build static, relativ pentru development
-      const baseURL = process.env.NODE_ENV === 'production' ? 'http://localhost:3001' : '';
-      const response = await axios.post(`${baseURL}/api/auth/login`, {
+      // Folosește întotdeauna URL complet pentru a evita problemele de proxy
+      const response = await axios.post('http://localhost:3001/api/auth/login', {
         username,
         password,
       });
@@ -156,7 +155,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async (): Promise<void> => {
     try {
       // Încearcă să facă logout pe server
-      await axios.post('/api/auth/logout');
+      await axios.post('http://localhost:3001/api/auth/logout');
     } catch (error) {
       console.error('Eroare la logout pe server:', error);
     } finally {
