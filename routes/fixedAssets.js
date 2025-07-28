@@ -217,14 +217,13 @@ router.post('/generate-code', async (req, res) => {
     }
 
     // Generate the code using the coding service
-    const code = await CodingService.generateAssetCode({
+    const code = await CodingService.generateUniqueCode({
       level1_id: sucursalaId,
       level2_id: tipSistemId,
       level3_id: categorieId,
       level4_id: functionalitateId,
-      level5_id: componentaId,
-      equipment_name: equipmentName
-    });
+      level5_id: componentaId
+    }, equipmentName);
 
     res.json({ code });
   } catch (error) {

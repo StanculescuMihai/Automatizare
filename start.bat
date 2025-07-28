@@ -111,17 +111,21 @@ echo Ce vrei sa faci?
 echo.
 echo 1. Porneste aplicatia (development mode)
 echo 2. Testeaza conexiunea la baza de date
-echo 3. Populeaza baza de date cu date initiale
-echo 4. Build pentru productie
-echo 5. Iesire
+echo 3. Initializeaza baza de date (sterge si recreaza tabelele)
+echo 4. Populeaza baza de date cu date initiale
+echo 5. Setup complet (initializeaza + populeaza)
+echo 6. Build pentru productie
+echo 7. Iesire
 echo.
-set /p choice="Alege optiunea (1-5): "
+set /p choice="Alege optiunea (1-7): "
 
 if "%choice%"=="1" goto start_dev
 if "%choice%"=="2" goto test_db
-if "%choice%"=="3" goto seed_db
-if "%choice%"=="4" goto build_prod
-if "%choice%"=="5" goto end
+if "%choice%"=="3" goto init_db
+if "%choice%"=="4" goto seed_db
+if "%choice%"=="5" goto full_setup
+if "%choice%"=="6" goto build_prod
+if "%choice%"=="7" goto end
 
 echo Optiune invalida!
 pause
@@ -167,11 +171,52 @@ echo.
 pause
 goto end
 
+:init_db
+echo.
+echo Initializez baza de date (sterge si recreaza tabelele)...
+echo ATENTIE: Aceasta operatie va sterge toate datele existente!
+echo.
+set /p confirm="Esti sigur? (y/n): "
+if /i not "%confirm%"=="y" goto end
+echo.
+node scripts/initDatabase.js
+echo.
+pause
+goto end
+
 :seed_db
 echo.
 echo Populez baza de date cu date initiale...
 node scripts/seedDatabase.js
 echo.
+pause
+goto end
+
+:full_setup
+echo.
+echo Setup complet: initializez si populez baza de date...
+echo ATENTIE: Aceasta operatie va sterge toate datele existente!
+echo.
+set /p confirm="Esti sigur? (y/n): "
+if /i not "%confirm%"=="y" goto end
+echo.
+echo [1/2] Initializez baza de date...
+node scripts/initDatabase.js
+if %errorlevel% neq 0 (
+    echo ❌ Eroare la initializarea bazei de date!
+    pause
+    goto end
+)
+echo.
+echo [2/2] Populez cu date initiale...
+node scripts/seedDatabase.js
+if %errorlevel% neq 0 (
+    echo ❌ Eroare la popularea bazei de date!
+    pause
+    goto end
+)
+echo.
+echo ✅ Setup complet finalizat cu succes!
 pause
 goto end
 

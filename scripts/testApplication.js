@@ -38,11 +38,11 @@ async function testCodingService() {
   
   try {
     // Găsește primul nivel de fiecare tip pentru test
-    const level1 = await Level.findOne({ where: { level: 1 } });
-    const level2 = await Level.findOne({ where: { level: 2 } });
-    const level3 = await Level.findOne({ where: { level: 3 } });
-    const level4 = await Level.findOne({ where: { level: 4 } });
-    const level5 = await Level.findOne({ where: { level: 5 } });
+    const level1 = await Level.findOne({ where: { level_number: 1 } });
+    const level2 = await Level.findOne({ where: { level_number: 2 } });
+    const level3 = await Level.findOne({ where: { level_number: 3 } });
+    const level4 = await Level.findOne({ where: { level_number: 4 } });
+    const level5 = await Level.findOne({ where: { level_number: 5 } });
     
     if (!level1 || !level2 || !level3 || !level4 || !level5) {
       console.log('⚠️  Nu există suficiente nivele pentru testarea codificării');
@@ -58,7 +58,7 @@ async function testCodingService() {
       equipment_name: 'Test Equipment'
     };
     
-    const generatedCode = await CodingService.generateAssetCode(testData);
+    const generatedCode = await CodingService.generateUniqueCode(testData, testData.equipment_name);
     console.log(`✅ Cod generat cu succes: ${generatedCode}`);
     
     return true;
@@ -73,15 +73,15 @@ async function testHierarchicalStructure() {
   
   try {
     const levels = await Level.findAll({
-      order: [['level', 'ASC'], ['name', 'ASC']]
+      order: [['level_number', 'ASC'], ['name', 'ASC']]
     });
     
     const levelsByType = {};
     levels.forEach(level => {
-      if (!levelsByType[level.level]) {
-        levelsByType[level.level] = [];
+      if (!levelsByType[level.level_number]) {
+        levelsByType[level.level_number] = [];
       }
-      levelsByType[level.level].push(level);
+      levelsByType[level.level_number].push(level);
     });
     
     console.log('📊 Structura ierarhică:');
@@ -96,9 +96,9 @@ async function testHierarchicalStructure() {
     for (let i = 2; i <= 5; i++) {
       if (levelsByType[i]) {
         for (const level of levelsByType[i]) {
-          if (level.parentId) {
-            const parent = levels.find(l => l.id === level.parentId);
-            if (!parent || parent.level !== i - 1) {
+          if (level.parent_id) {
+            const parent = levels.find(l => l.id === level.parent_id);
+            if (!parent || parent.level_number !== i - 1) {
               console.error(`❌ Relație invalidă: ${level.name} (nivel ${i}) -> părinte invalid`);
               relationshipErrors++;
             }
