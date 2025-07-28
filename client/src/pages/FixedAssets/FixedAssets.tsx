@@ -59,6 +59,11 @@ interface FixedAsset {
   categorie: string;
   functionalitate: string;
   componenta: string;
+  sucursalaId: number;
+  tipSistemId: number;
+  categorieId: number;
+  functionalitateId: number;
+  componentaId: number;
   createdAt: string;
   updatedAt: string;
 }
