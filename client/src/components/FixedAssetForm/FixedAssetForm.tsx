@@ -23,6 +23,7 @@ import {
   Cancel as CancelIcon,
   PhotoCamera as PhotoIcon,
 } from '@mui/icons-material';
+import axios from 'axios';
 
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -30,11 +31,30 @@ interface Level {
   id: number;
   name: string;
   code: string;
-  level: number;
-  parentId?: number;
+  level_number: number;
+  parent_id?: number;
 }
 
-interface FixedAsset {
+// This interface represents the data structure from the API
+interface FixedAssetAPI {
+  id: number;
+  unique_code: string;
+  equipment_name: string;
+  installation_address: string;
+  status: 'in functiune' | 'in rezerva' | 'defect' | 'propuse spre casare';
+  accounting_value: number;
+  installation_date: string;
+  description?: string;
+  drive_link?: string;
+  level1_id: number;
+  level2_id: number;
+  level3_id: number;
+  level4_id: number;
+  level5_id: number;
+}
+
+// This interface represents the form's internal state
+interface FixedAssetFormData {
   id?: number;
   name: string;
   description?: string;
@@ -42,7 +62,7 @@ interface FixedAsset {
   acquisitionValue: number;
   currentValue: number;
   location: string;
-  status: 'active' | 'inactive' | 'maintenance';
+  status: 'in functiune' | 'in rezerva' | 'defect' | 'propuse spre casare';
   photoUrl?: string;
   sucursalaId: number;
   tipSistemId: number;
@@ -55,7 +75,7 @@ interface FixedAssetFormProps {
   open: boolean;
   onClose: () => void;
   onSave: () => void;
-  asset?: FixedAsset | null;
+  asset?: FixedAssetAPI | null;
   mode: 'add' | 'edit' | 'view';
 }
 
@@ -67,18 +87,19 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
   mode,
 }) => {
   const { user } = useAuth();
+  console.log('--- Component Rendered ---', { mode, assetId: asset?.id });
   const [levels, setLevels] = useState<Level[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
-  const [formData, setFormData] = useState<FixedAsset>({
+  const [formData, setFormData] = useState<FixedAssetFormData>({
     name: '',
     description: '',
     acquisitionDate: new Date().toISOString().split('T')[0],
     acquisitionValue: 0,
     currentValue: 0,
     location: '',
-    status: 'active',
+    status: 'in functiune',
     photoUrl: '',
     sucursalaId: 0,
     tipSistemId: 0,
@@ -88,13 +109,29 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
   });
 
   useEffect(() => {
+    console.log('Effect for [open, asset, mode] triggered.');
     if (open) {
+      console.log('Form is open. Fetching levels.');
       fetchLevels();
       if (asset && mode !== 'add') {
+        // Map backend model to frontend form state
         setFormData({
-          ...asset,
-          acquisitionDate: asset.acquisitionDate.split('T')[0],
+          id: asset.id,
+          name: asset.equipment_name,
+          description: asset.description || '',
+          acquisitionDate: asset.installation_date ? asset.installation_date.split('T')[0] : '',
+          acquisitionValue: asset.accounting_value || 0,
+          currentValue: asset.accounting_value || 0, // Assuming currentValue is same as accounting_value initially
+          location: asset.installation_address || '',
+          status: asset.status,
+          photoUrl: asset.drive_link || '',
+          sucursalaId: asset.level1_id,
+          tipSistemId: asset.level2_id,
+          categorieId: asset.level3_id,
+          functionalitateId: asset.level4_id,
+          componentaId: asset.level5_id,
         });
+        setGeneratedCode(asset.unique_code);
       } else {
         resetForm();
       }
@@ -102,56 +139,46 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
   }, [open, asset, mode]);
 
   useEffect(() => {
-    if (formData.sucursalaId && formData.tipSistemId && formData.categorieId && 
+    console.log('Effect for [formData] triggered. Checking if should generate code.');
+    if (formData.sucursalaId && formData.tipSistemId && formData.categorieId &&
         formData.functionalitateId && formData.componentaId && formData.name) {
+      console.log('All fields present. Generating code...');
       generateCode();
     }
-  }, [formData.sucursalaId, formData.tipSistemId, formData.categorieId, 
+  }, [formData.sucursalaId, formData.tipSistemId, formData.categorieId,
       formData.functionalitateId, formData.componentaId, formData.name]);
 
   const fetchLevels = async () => {
+    console.log('Fetching levels from API...');
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/levels', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setLevels(data);
+      const response = await axios.get('http://localhost:3001/api/levels');
+      if (response.data && response.data.success) {
+        console.log('Levels fetched successfully:', response.data.data);
+        setLevels(response.data.data);
       }
     } catch (err) {
       console.error('Error fetching levels:', err);
+      setError('Nu s-au putut încărca datele de clasificare.');
     }
   };
 
   const generateCode = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/fixed-assets/generate-code', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          sucursalaId: formData.sucursalaId,
-          tipSistemId: formData.tipSistemId,
-          categorieId: formData.categorieId,
-          functionalitateId: formData.functionalitateId,
-          componentaId: formData.componentaId,
-          equipmentName: formData.name,
-        }),
+      const response = await axios.post('http://localhost:3001/api/fixed-assets/generate-code', {
+        sucursalaId: formData.sucursalaId,
+        tipSistemId: formData.tipSistemId,
+        categorieId: formData.categorieId,
+        functionalitateId: formData.functionalitateId,
+        componentaId: formData.componentaId,
+        equipmentName: formData.name,
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        setGeneratedCode(data.code);
+      if (response.data && response.data.code) {
+        setGeneratedCode(response.data.code);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error generating code:', err);
+      const errorMessage = err.response?.data?.message || 'A apărut o eroare la generarea codului.';
+      setError(errorMessage);
     }
   };
 
@@ -163,7 +190,7 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
       acquisitionValue: 0,
       currentValue: 0,
       location: '',
-      status: 'active',
+      status: 'in functiune',
       photoUrl: '',
       sucursalaId: 0,
       tipSistemId: 0,
@@ -176,39 +203,33 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
   };
 
   const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
-    
-    // Reset dependent fields when parent changes
-    if (field === 'sucursalaId') {
-      setFormData(prev => ({
+    console.log(`handleChange: field=${field}, value=${value}`);
+    setFormData(prev => {
+      const newState = {
         ...prev,
-        tipSistemId: 0,
-        categorieId: 0,
-        functionalitateId: 0,
-        componentaId: 0,
-      }));
-    } else if (field === 'tipSistemId') {
-      setFormData(prev => ({
-        ...prev,
-        categorieId: 0,
-        functionalitateId: 0,
-        componentaId: 0,
-      }));
-    } else if (field === 'categorieId') {
-      setFormData(prev => ({
-        ...prev,
-        functionalitateId: 0,
-        componentaId: 0,
-      }));
-    } else if (field === 'functionalitateId') {
-      setFormData(prev => ({
-        ...prev,
-        componentaId: 0,
-      }));
-    }
+        [field]: value,
+      };
+
+      // Reset dependent fields when parent changes
+      if (field === 'sucursalaId') {
+        newState.tipSistemId = 0;
+        newState.categorieId = 0;
+        newState.functionalitateId = 0;
+        newState.componentaId = 0;
+      } else if (field === 'tipSistemId') {
+        newState.categorieId = 0;
+        newState.functionalitateId = 0;
+        newState.componentaId = 0;
+      } else if (field === 'categorieId') {
+        newState.functionalitateId = 0;
+        newState.componentaId = 0;
+      } else if (field === 'functionalitateId') {
+        newState.componentaId = 0;
+      }
+      
+      console.log('New form state after handleChange:', newState);
+      return newState;
+    });
   };
 
   const handleSave = async () => {
@@ -216,47 +237,54 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
       setLoading(true);
       setError('');
 
-      const token = localStorage.getItem('token');
-      const url = mode === 'add' 
-        ? '/api/fixed-assets' 
-        : `/api/fixed-assets/${asset?.id}`;
+      const url = mode === 'add'
+        ? 'http://localhost:3001/api/fixed-assets'
+        : `http://localhost:3001/api/fixed-assets/${asset?.id}`;
       
-      const method = mode === 'add' ? 'POST' : 'PUT';
+      const method = mode === 'add' ? 'post' : 'put';
       
-      const payload = {
-        ...formData,
-        code: generatedCode,
+      const backendPayload: any = {
+        level1_id: formData.sucursalaId,
+        level2_id: formData.tipSistemId,
+        level3_id: formData.categorieId,
+        level4_id: formData.functionalitateId,
+        level5_id: formData.componentaId,
+        equipment_name: formData.name,
+        status: formData.status,
+        installation_address: formData.location,
+        description: formData.description,
+        installation_date: formData.acquisitionDate || null,
+        accounting_value: formData.acquisitionValue || null,
+        drive_link: formData.photoUrl || null,
+        asset_type: 'echipament',
+        lifespan: 10,
       };
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Eroare la salvarea mijlocului fix');
+      // Only send unique_code if it's generated (for creation) or if editing
+      if (mode === 'edit' && asset?.id) {
+        // In edit mode, we might send the existing code if it's part of formData
+        // Or let the backend handle it if it's not supposed to change.
+        // For now, we assume it's not editable directly.
+      } else if (mode === 'add' && generatedCode) {
+         backendPayload.unique_code = generatedCode;
       }
+      // If creating and no code is generated, we don't send the key,
+      // so the backend is forced to generate it.
+
+      await axios[method](url, backendPayload);
 
       onSave();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Eroare la salvarea mijlocului fix');
+      const errorMessage = err.response?.data?.errors ? err.response?.data?.errors.join(', ') : (err.response?.data?.message || 'Eroare la salvarea mijlocului fix');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const getLevelsByType = (level: number, parentId?: number) => {
-    return levels.filter(l => {
-      if (l.level !== level) return false;
-      if (level === 1) return true; // Sucursale don't have parents
-      return l.parentId === parentId;
-    });
+    return levels.filter(l => l.level_number === level);
   };
 
   const getLevelName = (levelId: number) => {
@@ -269,10 +297,8 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
            formData.sucursalaId && 
            formData.tipSistemId && 
            formData.categorieId && 
-           formData.functionalitateId && 
+           formData.functionalitateId &&
            formData.componentaId &&
-           formData.acquisitionValue > 0 &&
-           formData.currentValue >= 0 &&
            formData.location;
   };
 
@@ -364,14 +390,14 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
 
           <Grid item xs={12} md={6}>
             <FormControl fullWidth required>
-              <InputLabel>Sucursala</InputLabel>
+              <InputLabel>Site</InputLabel>
               <Select
                 value={formData.sucursalaId}
-                label="Sucursala"
+                label="Site"
                 onChange={(e) => handleChange('sucursalaId', e.target.value)}
                 disabled={mode === 'view'}
               >
-                <MenuItem value={0}>Selectați sucursala</MenuItem>
+                <MenuItem value={0}>Selectați site-ul</MenuItem>
                 {getLevelsByType(1).map((level) => (
                   <MenuItem key={level.id} value={level.id}>
                     {level.name} ({level.code})
@@ -383,14 +409,14 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
 
           <Grid item xs={12} md={6}>
             <FormControl fullWidth required>
-              <InputLabel>Tip Sistem</InputLabel>
+              <InputLabel>Entitate</InputLabel>
               <Select
                 value={formData.tipSistemId}
-                label="Tip Sistem"
+                label="Entitate"
                 onChange={(e) => handleChange('tipSistemId', e.target.value)}
                 disabled={mode === 'view' || !formData.sucursalaId}
               >
-                <MenuItem value={0}>Selectați tipul de sistem</MenuItem>
+                <MenuItem value={0}>Selectați entitatea</MenuItem>
                 {getLevelsByType(2, formData.sucursalaId).map((level) => (
                   <MenuItem key={level.id} value={level.id}>
                     {level.name} ({level.code})
@@ -402,14 +428,14 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
 
           <Grid item xs={12} md={6}>
             <FormControl fullWidth required>
-              <InputLabel>Categorie</InputLabel>
+              <InputLabel>Unitate</InputLabel>
               <Select
                 value={formData.categorieId}
-                label="Categorie"
+                label="Unitate"
                 onChange={(e) => handleChange('categorieId', e.target.value)}
                 disabled={mode === 'view' || !formData.tipSistemId}
               >
-                <MenuItem value={0}>Selectați categoria</MenuItem>
+                <MenuItem value={0}>Selectați unitatea</MenuItem>
                 {getLevelsByType(3, formData.tipSistemId).map((level) => (
                   <MenuItem key={level.id} value={level.id}>
                     {level.name} ({level.code})
@@ -421,14 +447,14 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
 
           <Grid item xs={12} md={6}>
             <FormControl fullWidth required>
-              <InputLabel>Funcționalitate</InputLabel>
+              <InputLabel>Ansamblu funcțional</InputLabel>
               <Select
                 value={formData.functionalitateId}
-                label="Funcționalitate"
+                label="Ansamblu funcțional"
                 onChange={(e) => handleChange('functionalitateId', e.target.value)}
                 disabled={mode === 'view' || !formData.categorieId}
               >
-                <MenuItem value={0}>Selectați funcționalitatea</MenuItem>
+                <MenuItem value={0}>Selectați ansamblul</MenuItem>
                 {getLevelsByType(4, formData.categorieId).map((level) => (
                   <MenuItem key={level.id} value={level.id}>
                     {level.name} ({level.code})
@@ -440,14 +466,14 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
 
           <Grid item xs={12} md={6}>
             <FormControl fullWidth required>
-              <InputLabel>Componentă</InputLabel>
+              <InputLabel>Locație funcțională</InputLabel>
               <Select
                 value={formData.componentaId}
-                label="Componentă"
+                label="Locație funcțională"
                 onChange={(e) => handleChange('componentaId', e.target.value)}
                 disabled={mode === 'view' || !formData.functionalitateId}
               >
-                <MenuItem value={0}>Selectați componenta</MenuItem>
+                <MenuItem value={0}>Selectați locația</MenuItem>
                 {getLevelsByType(5, formData.functionalitateId).map((level) => (
                   <MenuItem key={level.id} value={level.id}>
                     {level.name} ({level.code})
@@ -472,7 +498,6 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
               value={formData.acquisitionDate}
               onChange={(e) => handleChange('acquisitionDate', e.target.value)}
               InputLabelProps={{ shrink: true }}
-              required
               disabled={mode === 'view'}
             />
           </Grid>
@@ -502,7 +527,6 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
               InputProps={{
                 endAdornment: <InputAdornment position="end">RON</InputAdornment>,
               }}
-              required
               disabled={mode === 'view'}
             />
           </Grid>
@@ -523,9 +547,10 @@ const FixedAssetForm: React.FC<FixedAssetFormProps> = ({
                 onChange={(e) => handleChange('status', e.target.value)}
                 disabled={mode === 'view'}
               >
-                <MenuItem value="active">Activ</MenuItem>
-                <MenuItem value="inactive">Inactiv</MenuItem>
-                <MenuItem value="maintenance">Mentenanță</MenuItem>
+                <MenuItem value="in functiune">În funcțiune</MenuItem>
+                <MenuItem value="in rezerva">În rezervă</MenuItem>
+                <MenuItem value="defect">Defect</MenuItem>
+                <MenuItem value="propuse spre casare">Propus spre casare</MenuItem>
               </Select>
             </FormControl>
           </Grid>

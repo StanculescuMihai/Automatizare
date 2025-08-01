@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import {
   Box,
   Paper,
@@ -14,10 +15,6 @@ import {
   TablePagination,
   IconButton,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   FormControl,
   InputLabel,
   Select,
@@ -35,45 +32,40 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
   Visibility as ViewIcon,
-  GetApp as ExportIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
 import FixedAssetForm from '../../components/FixedAssetForm/FixedAssetForm';
 
-interface FixedAsset {
-  id: number;
-  name: string;
-  code: string;
-  description?: string;
-  acquisitionDate: string;
-  acquisitionValue: number;
-  currentValue: number;
-  location: string;
-  status: 'active' | 'inactive' | 'maintenance';
-  photoUrl?: string;
-  sucursala: string;
-  tipSistem: string;
-  categorie: string;
-  functionalitate: string;
-  componenta: string;
-  sucursalaId: number;
-  tipSistemId: number;
-  categorieId: number;
-  functionalitateId: number;
-  componentaId: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
+// This interface should match the structure of the data received from the API
 interface Level {
   id: number;
   name: string;
   code: string;
-  level: number;
-  parentId?: number;
+  level_number: number;
+}
+
+interface FixedAsset {
+  id: number;
+  unique_code: string;
+  equipment_name: string;
+  installation_address: string;
+  status: 'in functiune' | 'in rezerva' | 'defect' | 'propuse spre casare';
+  accounting_value: number;
+  installation_date: string;
+  level1_id: number;
+  level2_id: number;
+  level3_id: number;
+  level4_id: number;
+  level5_id: number;
+  level1?: Level;
+  level2?: Level;
+  level3?: Level;
+  level4?: Level;
+  level5?: Level;
+  // Add other fields from the backend model as needed
+  [key: string]: any; // Allow other properties
 }
 
 const FixedAssets: React.FC = () => {
@@ -87,68 +79,55 @@ const FixedAssets: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
-    sucursala: '',
-    tipSistem: '',
-    categorie: '',
+    location: '', // Corresponds to level1 code
     status: '',
   });
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<FixedAsset | null>(null);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'view'>('add');
 
-  useEffect(() => {
-    fetchAssets();
-    fetchLevels();
-  }, [page, rowsPerPage, searchTerm, filters]);
-
-  const fetchAssets = async () => {
+  const fetchAssets = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       const queryParams = new URLSearchParams({
         page: (page + 1).toString(),
         limit: rowsPerPage.toString(),
         search: searchTerm,
-        ...filters,
+        location: filters.location,
+        status: filters.status,
       });
 
-      const response = await fetch(`/api/fixed-assets?${queryParams}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Eroare la încărcarea mijloacelor fixe');
+      const response = await axios.get(`http://localhost:3001/api/fixed-assets?${queryParams}`);
+      
+      if (response.data && response.data.success) {
+        setAssets(response.data.data);
+        setTotalCount(response.data.pagination.total);
       }
-
-      const data = await response.json();
-      setAssets(data.assets);
-      setTotalCount(data.total);
     } catch (err: any) {
-      setError(err.message || 'Eroare la încărcarea datelor');
+      setError(err.response?.data?.message || 'Eroare la încărcarea datelor');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, rowsPerPage, searchTerm, JSON.stringify(filters)]);
 
-  const fetchLevels = async () => {
+  const fetchLevels = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/levels', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setLevels(data);
+      const response = await axios.get('http://localhost:3001/api/levels');
+      if (response.data && response.data.success) {
+        setLevels(response.data.data);
       }
     } catch (err) {
       console.error('Error fetching levels:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAssets();
+  }, [fetchAssets]);
+
+  useEffect(() => {
+    fetchLevels();
+  }, [fetchLevels]);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -187,156 +166,69 @@ const FixedAssets: React.FC = () => {
     if (!window.confirm('Sunteți sigur că doriți să ștergeți acest mijloc fix?')) {
       return;
     }
-
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/fixed-assets/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Eroare la ștergerea mijlocului fix');
-      }
-
+      await axios.delete(`http://localhost:3001/api/fixed-assets/${id}`);
       fetchAssets();
     } catch (err: any) {
-      setError(err.message || 'Eroare la ștergerea mijlocului fix');
+      setError(err.response?.data?.message || 'Eroare la ștergerea mijlocului fix');
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): 'success' | 'error' | 'warning' | 'default' | 'primary' | 'secondary' => {
     switch (status) {
-      case 'active':
-        return 'success';
-      case 'inactive':
-        return 'error';
-      case 'maintenance':
-        return 'warning';
-      default:
-        return 'default';
+      case 'in functiune': return 'success';
+      case 'in rezerva': return 'primary';
+      case 'defect': return 'error';
+      case 'propuse spre casare': return 'warning';
+      default: return 'default';
     }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'Activ';
-      case 'inactive':
-        return 'Inactiv';
-      case 'maintenance':
-        return 'Mentenanță';
-      default:
-        return status;
-    }
-  };
-
-  const getLevelsByType = (level: number) => {
-    return levels.filter(l => l.level === level);
   };
 
   if (loading && assets.length === 0) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
+    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px"><CircularProgress /></Box>;
   }
 
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">
-          Mijloace Fixe
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog('add')}
-        >
+        <Typography variant="h4">Mijloace Fixe</Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog('add')}>
           Adaugă Mijloc Fix
         </Button>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {/* Search and Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 placeholder="Căutare după nume, cod sau descriere..."
                 value={searchTerm}
                 onChange={handleSearchChange}
                 InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
+                  startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
                 }}
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth>
-                <InputLabel>Sucursala</InputLabel>
+                <InputLabel>Site</InputLabel>
                 <Select
-                  value={filters.sucursala}
-                  label="Sucursala"
-                  onChange={(e) => handleFilterChange('sucursala', e.target.value)}
+                  value={filters.location}
+                  label="Site"
+                  onChange={(e) => handleFilterChange('location', e.target.value)}
                 >
                   <MenuItem value="">Toate</MenuItem>
-                  {getLevelsByType(1).map((level) => (
-                    <MenuItem key={level.id} value={level.name}>
-                      {level.name}
-                    </MenuItem>
+                  {levels.filter(l => l.level_number === 1).map((level) => (
+                    <MenuItem key={level.id} value={level.code}>{level.name}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>Tip Sistem</InputLabel>
-                <Select
-                  value={filters.tipSistem}
-                  label="Tip Sistem"
-                  onChange={(e) => handleFilterChange('tipSistem', e.target.value)}
-                >
-                  <MenuItem value="">Toate</MenuItem>
-                  {getLevelsByType(2).map((level) => (
-                    <MenuItem key={level.id} value={level.name}>
-                      {level.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>Categorie</InputLabel>
-                <Select
-                  value={filters.categorie}
-                  label="Categorie"
-                  onChange={(e) => handleFilterChange('categorie', e.target.value)}
-                >
-                  <MenuItem value="">Toate</MenuItem>
-                  {getLevelsByType(3).map((level) => (
-                    <MenuItem key={level.id} value={level.name}>
-                      {level.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -345,9 +237,10 @@ const FixedAssets: React.FC = () => {
                   onChange={(e) => handleFilterChange('status', e.target.value)}
                 >
                   <MenuItem value="">Toate</MenuItem>
-                  <MenuItem value="active">Activ</MenuItem>
-                  <MenuItem value="inactive">Inactiv</MenuItem>
-                  <MenuItem value="maintenance">Mentenanță</MenuItem>
+                  <MenuItem value="in functiune">În funcțiune</MenuItem>
+                  <MenuItem value="in rezerva">În rezervă</MenuItem>
+                  <MenuItem value="defect">Defect</MenuItem>
+                  <MenuItem value="propuse spre casare">Propus spre casare</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -355,7 +248,6 @@ const FixedAssets: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Assets Table */}
       <Paper>
         <TableContainer>
           <Table>
@@ -366,8 +258,8 @@ const FixedAssets: React.FC = () => {
                 <TableCell>Locație</TableCell>
                 <TableCell>Categorie</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Valoare Actuală</TableCell>
-                <TableCell>Data Achiziție</TableCell>
+                <TableCell>Valoare Contabilă</TableCell>
+                <TableCell>Data Instalării</TableCell>
                 <TableCell align="center">Acțiuni</TableCell>
               </TableRow>
             </TableHead>
@@ -375,58 +267,31 @@ const FixedAssets: React.FC = () => {
               {assets.map((asset) => (
                 <TableRow key={asset.id} hover>
                   <TableCell>
-                    <Typography variant="body2" fontWeight="bold">
-                      {asset.code}
-                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">{asset.unique_code}</Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">
-                      {asset.name}
-                    </Typography>
+                    <Typography variant="body2">{asset.equipment_name}</Typography>
                   </TableCell>
-                  <TableCell>{asset.location}</TableCell>
-                  <TableCell>{asset.categorie}</TableCell>
+                  <TableCell>{asset.installation_address}</TableCell>
+                  <TableCell>{asset.level3?.name || 'N/A'}</TableCell>
                   <TableCell>
-                    <Chip
-                      label={getStatusLabel(asset.status)}
-                      color={getStatusColor(asset.status) as any}
-                      size="small"
-                    />
+                    <Chip label={asset.status} color={getStatusColor(asset.status)} size="small" />
                   </TableCell>
                   <TableCell>
-                    {new Intl.NumberFormat('ro-RO', {
-                      style: 'currency',
-                      currency: 'RON',
-                    }).format(asset.currentValue)}
+                    {new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON' }).format(asset.accounting_value || 0)}
                   </TableCell>
                   <TableCell>
-                    {new Date(asset.acquisitionDate).toLocaleDateString('ro-RO')}
+                    {asset.installation_date ? new Date(asset.installation_date).toLocaleDateString('ro-RO') : 'N/A'}
                   </TableCell>
                   <TableCell align="center">
                     <Tooltip title="Vizualizare">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDialog('view', asset)}
-                      >
-                        <ViewIcon />
-                      </IconButton>
+                      <IconButton size="small" onClick={() => handleOpenDialog('view', asset)}><ViewIcon /></IconButton>
                     </Tooltip>
                     <Tooltip title="Editare">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDialog('edit', asset)}
-                      >
-                        <EditIcon />
-                      </IconButton>
+                      <IconButton size="small" onClick={() => handleOpenDialog('edit', asset)}><EditIcon /></IconButton>
                     </Tooltip>
                     <Tooltip title="Ștergere">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteAsset(asset.id)}
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                      <IconButton size="small" onClick={() => handleDeleteAsset(asset.id)} color="error"><DeleteIcon /></IconButton>
                     </Tooltip>
                   </TableCell>
                 </TableRow>
@@ -443,13 +308,10 @@ const FixedAssets: React.FC = () => {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           labelRowsPerPage="Rânduri per pagină:"
-          labelDisplayedRows={({ from, to, count }) =>
-            `${from}-${to} din ${count !== -1 ? count : `mai mult de ${to}`}`
-          }
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} din ${count}`}
         />
       </Paper>
 
-      {/* Fixed Asset Form Dialog */}
       <FixedAssetForm
         open={openDialog}
         onClose={handleCloseDialog}

@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Box,
-  Card,
-  CardContent,
   TextField,
   Button,
   Typography,
@@ -18,50 +16,49 @@ import {
   VisibilityOff,
   Person,
   Lock,
+  AccountCircle,
 } from '@mui/icons-material';
-
 import { useAuth } from '../../contexts/AuthContext';
-import { Link } from 'react-router-dom'; // Import Link
 
-const Login: React.FC = () => {
+const Register: React.FC = () => {
   const navigate = useNavigate();
-  const { user, login } = useAuth();
+  const { register } = useAuth(); // We will need to add this function to AuthContext
   const [formData, setFormData] = useState({
+    fullName: '',
     username: '',
     password: '',
+    confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
-    // Clear error when user starts typing
-    if (error) {
-      setError('');
-    }
+    if (error) setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Parolele nu se potrivesc');
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      await login(formData.username, formData.password);
-      console.log('Autentificare reușită! Se navighează către /dashboard');
+      // The register function in AuthContext will handle API call and login
+      await register(formData.fullName, formData.username, formData.password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Eroare la autentificare');
+      setError(err.message || 'Eroare la înregistrare');
     } finally {
       setLoading(false);
     }
@@ -100,19 +97,8 @@ const Login: React.FC = () => {
               mb: 3,
             }}
           >
-            <Typography
-              component="h1"
-              variant="h4"
-              sx={{
-                mb: 1,
-                fontWeight: 'bold',
-                color: 'primary.main',
-              }}
-            >
-              Mijloace Fixe
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Sistem de gestionare a mijloacelor fixe
+            <Typography component="h1" variant="h4" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              Creează Cont Nou
             </Typography>
           </Box>
 
@@ -127,11 +113,30 @@ const Login: React.FC = () => {
               margin="normal"
               required
               fullWidth
+              id="fullName"
+              label="Nume Complet"
+              name="fullName"
+              autoComplete="name"
+              autoFocus
+              value={formData.fullName}
+              onChange={handleChange}
+              disabled={loading}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <AccountCircle color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
               id="username"
               label="Nume utilizator"
               name="username"
               autoComplete="username"
-              autoFocus
               value={formData.username}
               onChange={handleChange}
               disabled={loading}
@@ -151,7 +156,7 @@ const Login: React.FC = () => {
               label="Parolă"
               type={showPassword ? 'text' : 'password'}
               id="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               value={formData.password}
               onChange={handleChange}
               disabled={loading}
@@ -175,29 +180,34 @@ const Login: React.FC = () => {
                 ),
               }}
             />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="confirmPassword"
+              label="Confirmă Parola"
+              type={showPassword ? 'text' : 'password'}
+              id="confirmPassword"
+              autoComplete="new-password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              disabled={loading}
+            />
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{
-                mt: 3,
-                mb: 2,
-                py: 1.5,
-                fontSize: '1.1rem',
-              }}
-              disabled={loading || !formData.username || !formData.password}
+              sx={{ mt: 3, mb: 2, py: 1.5, fontSize: '1.1rem' }}
+              disabled={loading || !formData.username || !formData.password || !formData.fullName}
             >
-              {loading ? 'Se conectează...' : 'Conectare'}
+              {loading ? 'Se înregistrează...' : 'Înregistrare'}
             </Button>
           </Box>
 
           <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Utilizați contul furnizat de administrator
-            </Typography>
             <Typography variant="body2">
-              <Link to="/register" style={{ textDecoration: 'none' }}>
-                Nu ai un cont? Înregistrează-te
+              <Link to="/login" style={{ textDecoration: 'none' }}>
+                Ai deja un cont? Autentifică-te
               </Link>
             </Typography>
           </Box>
@@ -207,4 +217,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default Register;

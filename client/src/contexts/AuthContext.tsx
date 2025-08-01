@@ -14,6 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  register: (fullName: string, username: string, password: string) => Promise<void>;
   logout: () => void;
   token: string | null;
 }
@@ -151,6 +152,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Funcția de register
+  const register = async (fullName: string, username: string, password: string): Promise<void> => {
+    try {
+      setLoading(true);
+      const response = await axios.post('http://localhost:3001/api/auth/register', {
+        fullName,
+        username,
+        password,
+      });
+
+      if (response.data.success) {
+        const { token: newToken, user: newUser } = response.data.data;
+        
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(newUser));
+        
+        setToken(newToken);
+        setUser(newUser);
+      } else {
+        throw new Error(response.data.message || 'Eroare la înregistrare');
+      }
+    } catch (error: any) {
+      console.error('Eroare la înregistrare:', error);
+      throw new Error(
+        error.response?.data?.message ||
+        error.message ||
+        'Eroare la înregistrare'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Funcția de logout
   const logout = async (): Promise<void> => {
     try {
@@ -172,6 +206,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user,
     loading,
     login,
+    register,
     logout,
     token,
   };

@@ -1,12 +1,10 @@
 module.exports = {
   devServer: {
-    allowedHosts: ['localhost', '127.0.0.1'],
-    host: 'localhost',
-    port: 3000,
-    historyApiFallback: true,
-    hot: true,
-    client: {
-      overlay: false
-    }
-  }
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
 };

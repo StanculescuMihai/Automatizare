@@ -1,6 +1,7 @@
 const sequelize = require('../config/database');
 const Level = require('./Level');
 const FixedAsset = require('./FixedAsset');
+const User = require('./User');
 
 // Definirea asocierilor între modele
 const defineAssociations = () => {
@@ -64,7 +65,8 @@ defineAssociations();
 module.exports = {
   sequelize,
   Level,
-  FixedAsset
+  FixedAsset,
+  User
 };
 
 // Funcție pentru sincronizarea bazei de date

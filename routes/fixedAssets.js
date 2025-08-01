@@ -197,43 +197,6 @@ router.post('/', async (req, res) => {
       };
       
       value.unique_code = await CodingService.generateUniqueCode(levels, value.equipment_name);
-// POST /api/fixed-assets/generate-code - Generate code for fixed asset
-router.post('/generate-code', async (req, res) => {
-  try {
-    const {
-      sucursalaId,
-      tipSistemId,
-      categorieId,
-      functionalitateId,
-      componentaId,
-      equipmentName
-    } = req.body;
-
-    // Validate required fields
-    if (!sucursalaId || !tipSistemId || !categorieId || !functionalitateId || !componentaId || !equipmentName) {
-      return res.status(400).json({
-        message: 'Toate câmpurile sunt obligatorii pentru generarea codului'
-      });
-    }
-
-    // Generate the code using the coding service
-    const code = await CodingService.generateUniqueCode({
-      level1_id: sucursalaId,
-      level2_id: tipSistemId,
-      level3_id: categorieId,
-      level4_id: functionalitateId,
-      level5_id: componentaId
-    }, equipmentName);
-
-    res.json({ code });
-  } catch (error) {
-    console.error('Error generating code:', error);
-    res.status(500).json({
-      message: 'Eroare la generarea codului',
-      error: error.message
-    });
-  }
-});
     } else {
       // Validează codul furnizat manual
       const validation = await CodingService.validateCode(value.unique_code);
@@ -358,6 +321,44 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Eroare la ștergerea mijlocului fix',
+      error: error.message
+    });
+  }
+});
+
+// POST /api/fixed-assets/generate-code - Generate code for fixed asset
+router.post('/generate-code', async (req, res) => {
+  try {
+    const {
+      sucursalaId,
+      tipSistemId,
+      categorieId,
+      functionalitateId,
+      componentaId,
+      equipmentName
+    } = req.body;
+
+    // Validate required fields
+    if (!sucursalaId || !tipSistemId || !categorieId || !functionalitateId || !componentaId || !equipmentName) {
+      return res.status(400).json({
+        message: 'Toate câmpurile sunt obligatorii pentru generarea codului'
+      });
+    }
+
+    // Generate the code using the coding service
+    const code = await CodingService.generateUniqueCode({
+      level1_id: sucursalaId,
+      level2_id: tipSistemId,
+      level3_id: categorieId,
+      level4_id: functionalitateId,
+      level5_id: componentaId
+    }, equipmentName);
+
+    res.json({ code });
+  } catch (error) {
+    console.error('Error generating code:', error);
+    res.status(500).json({
+      message: 'Eroare la generarea codului',
       error: error.message
     });
   }

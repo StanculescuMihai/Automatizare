@@ -58,6 +58,12 @@ const navigationItems: NavigationItem[] = [
     path: '/admin',
     adminOnly: true,
   },
+  {
+    text: 'Management Nivele',
+    icon: <SettingsIcon />,
+    path: '/admin/levels',
+    adminOnly: true,
+  },
 ];
 
 const Layout: React.FC = () => {

@@ -63,7 +63,7 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/dashboard/stats', {
+      const response = await fetch('http://localhost:3001/api/dashboard/statistics', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -74,7 +74,7 @@ const Dashboard: React.FC = () => {
       }
 
       const data = await response.json();
-      setStats(data);
+      setStats(data.data);
     } catch (err: any) {
       setError(err.message || 'Eroare la încărcarea datelor');
     } finally {
@@ -151,7 +151,7 @@ const Dashboard: React.FC = () => {
                     Locații Active
                   </Typography>
                   <Typography variant="h4">
-                    {stats.assetsByLocation.length}
+                    {stats.assetsByLocation?.length || 0}
                   </Typography>
                 </Box>
               </Box>
@@ -170,7 +170,7 @@ const Dashboard: React.FC = () => {
                     Categorii
                   </Typography>
                   <Typography variant="h4">
-                    {stats.assetsByCategory.length}
+                    {stats.assetsByCategory?.length || 0}
                   </Typography>
                 </Box>
               </Box>
@@ -189,7 +189,7 @@ const Dashboard: React.FC = () => {
                     Această Lună
                   </Typography>
                   <Typography variant="h4">
-                    {stats.monthlyTrend[stats.monthlyTrend.length - 1]?.count || 0}
+                    {stats.monthlyTrend?.[stats.monthlyTrend.length - 1]?.count || 0}
                   </Typography>
                 </Box>
               </Box>
@@ -205,7 +205,7 @@ const Dashboard: React.FC = () => {
               Distribuție pe Locații
             </Typography>
             <List>
-              {stats.assetsByLocation.slice(0, 5).map((location, index) => (
+              {stats.assetsByLocation?.slice(0, 5).map((location, index) => (
                 <React.Fragment key={location.location}>
                   <ListItem>
                     <ListItemText
@@ -218,7 +218,7 @@ const Dashboard: React.FC = () => {
                       size="small"
                     />
                   </ListItem>
-                  {index < Math.min(stats.assetsByLocation.length - 1, 4) && <Divider />}
+                  {index < Math.min(stats.assetsByLocation?.length - 1, 4) && <Divider />}
                 </React.Fragment>
               ))}
             </List>
@@ -233,7 +233,7 @@ const Dashboard: React.FC = () => {
               Distribuție pe Categorii
             </Typography>
             <List>
-              {stats.assetsByCategory.slice(0, 5).map((category, index) => (
+              {stats.assetsByCategory?.slice(0, 5).map((category, index) => (
                 <React.Fragment key={category.category}>
                   <ListItem>
                     <ListItemText
@@ -246,7 +246,7 @@ const Dashboard: React.FC = () => {
                       size="small"
                     />
                   </ListItem>
-                  {index < Math.min(stats.assetsByCategory.length - 1, 4) && <Divider />}
+                  {index < Math.min(stats.assetsByCategory?.length - 1, 4) && <Divider />}
                 </React.Fragment>
               ))}
             </List>
@@ -261,7 +261,7 @@ const Dashboard: React.FC = () => {
               Mijloace Fixe Adăugate Recent
             </Typography>
             <List>
-              {stats.recentAssets.map((asset, index) => (
+              {stats.recentAssets?.map((asset, index) => (
                 <React.Fragment key={asset.id}>
                   <ListItem>
                     <ListItemIcon>
@@ -282,11 +282,11 @@ const Dashboard: React.FC = () => {
                       }
                     />
                   </ListItem>
-                  {index < stats.recentAssets.length - 1 && <Divider />}
+                  {index < (stats.recentAssets?.length || 0) - 1 && <Divider />}
                 </React.Fragment>
               ))}
             </List>
-            {stats.recentAssets.length === 0 && (
+            {stats.recentAssets?.length === 0 && (
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
                 Nu există mijloace fixe adăugate recent
               </Typography>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from 'react-query';
@@ -11,6 +11,10 @@ import Login from './pages/Login/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
 import FixedAssets from './pages/FixedAssets/FixedAssets';
 import Admin from './pages/Admin/Admin';
+import Register from './pages/Register/Register'; // Import Register component
+import ManageLevels from './pages/ManageLevels/ManageLevels'; // Import ManageLevels component
+import AdminRoute from './components/AdminRoute/AdminRoute';
+
 
 // Configurarea temei Material-UI
 const theme = createTheme({
@@ -71,14 +75,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div>Se încarcă...</div>;
+    return <div>Se încarcă...</div>; // Or a spinner component
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
 // Componenta pentru rutele publice (doar pentru utilizatorii neautentificați)
@@ -86,14 +86,10 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div>Se încarcă...</div>;
+    return <div>Se încarcă...</div>; // Or a spinner component
   }
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
+  return !isAuthenticated ? <>{children}</> : <Navigate to="/dashboard" replace />;
 };
 
 function App() {
@@ -101,7 +97,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <SnackbarProvider 
+        <SnackbarProvider
           maxSnack={3}
           anchorOrigin={{
             vertical: 'top',
@@ -112,18 +108,26 @@ function App() {
             <Router>
               <Routes>
                 {/* Rute publice */}
-                <Route 
-                  path="/login" 
+                <Route
+                  path="/login"
                   element={
                     <PublicRoute>
                       <Login />
                     </PublicRoute>
-                  } 
+                  }
+                />
+                <Route
+                  path="/register"
+                  element={
+                    <PublicRoute>
+                      <Register />
+                    </PublicRoute>
+                  }
                 />
 
                 {/* Rute protejate */}
-                <Route 
-                  path="/" 
+                <Route
+                  path="/"
                   element={
                     <ProtectedRoute>
                       <Layout />
@@ -132,13 +136,31 @@ function App() {
                 >
                   <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<Dashboard />} />
-                  
+
                   {/* Mijloace fixe */}
                   <Route path="fixed-assets" element={<FixedAssets />} />
-                  
+
                   {/* Admin panel */}
-                  <Route path="admin" element={<Admin />} />
+                  {/* <Route path="admin" element={<Admin />} /> */}
                 </Route>
+
+                {/* Admin Route */}
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminRoute>
+                      <Admin />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/levels"
+                  element={
+                    <AdminRoute>
+                      <ManageLevels />
+                    </AdminRoute>
+                  }
+                />
 
                 {/* Rută pentru 404 */}
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

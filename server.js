@@ -24,12 +24,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Disable caching for all API routes
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/levels', require('./routes/levels'));
 app.use('/api/fixed-assets', require('./routes/fixedAssets'));
 app.use('/api/code-mappings', require('./routes/codeMappings'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/users', require('./routes/users'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -63,7 +70,7 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Ruta nu a fost găsită' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Database connection and server start
 const startServer = async () => {
@@ -73,7 +80,7 @@ const startServer = async () => {
     
     // Sync database in development
     if (process.env.NODE_ENV === 'development') {
-      await db.sync({ alter: true });
+      await db.sync();
       console.log('✅ Modelele bazei de date au fost sincronizate.');
     }
     
